@@ -12,11 +12,16 @@ parameterised by all integers n.
     B(n) = 243·t³
     C(n) = t·(11664n³+26244n²+19683n+4916)
 
-## Known solutions (verified)
+## Solutions found (all independently verified)
 
-| n  | x    | y       |
-|----|------|---------|
-| 94 | −562 | ±17722  |
+| n    | x       | y          | verified |
+|------|---------|------------|----------|
+|  -1  |      18 | ±167       | ✓        |
+| -64  |  144840 | ±333523318 | ✓        |
+|  94  |    -562 | ±17722     | ✓        |
+| -110 |     646 | ±40812     | ✓        |
+
+Search is ongoing — more solutions will appear in `output/solutions.txt`.
 
 ## Quick start
 
