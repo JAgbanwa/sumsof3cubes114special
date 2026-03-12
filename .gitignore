@@ -1,0 +1,9 @@
+worker
+worker_boinc
+output/
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+checkpoint.txt
+nohup.out
