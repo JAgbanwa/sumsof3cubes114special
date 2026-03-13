@@ -1,0 +1,2 @@
+# No solutions with y/(6n) integer found yet among currently known solutions.
+# Workers are running across n in [-200M, +200M]. Re-run this script after more complete.
