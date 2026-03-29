@@ -1,0 +1,84 @@
+var('x y n X')
+
+# Original equation
+eq = y^2 == x^3 + (36*n + 27)^2 * x^2 + (15552*n^3 + 34992*n^2 + 26244*n + 6561) * x + (46656*n^4 + 139968*n^3 + 157464*n^2 + 78713*n + 14748)
+
+# Shift: x = X + shift, where shift = (36n + 27)^2 / 3
+shift = (36*n + 27)^2 / 3
+
+# Substitute x = X + shift
+eq_shifted = eq.subs(x == X + shift)
+
+# Expand everything
+eq_expanded = eq_shifted.expand()
+
+print("After substitution x = X + (36n+27)^2/3:")
+print("Equation becomes: y^2 =", eq_expanded.rhs())
+print()
+
+# Extract coefficients - use symbolic coefficient method
+rhs_expr = eq_expanded.rhs()
+X3_coeff = rhs_expr.coefficient(X^3)
+X2_coeff = rhs_expr.coefficient(X^2)
+X1_coeff = rhs_expr.coefficient(X)
+const_coeff = rhs_expr.subs({X: 0})
+
+print("Coefficients:")
+print("X^3 coefficient:", X3_coeff)
+print("X^2 coefficient:", X2_coeff)
+print("X coefficient:", X1_coeff)
+print("Constant term:", const_coeff)
+print()
+
+print("X^2 coefficient is zero:", X2_coeff == 0)
+print()
+
+# Weierstrass form
+A = X1_coeff.simplify_rational()
+B = const_coeff.simplify_rational()
+
+print("Final Weierstrass form:")
+print("y^2 = X^3 +", A, "* X +", B)
+print()
+
+# Alternative: exact polynomial arithmetic
+print("--- Verification with exact polynomial arithmetic ---")
+R.<n> = PolynomialRing(QQ)
+shift_poly = (36*n + 27)^2 / 3
+
+# Original coefficients as polynomials
+coeff_x2 = (36*n + 27)^2
+coeff_x1 = 15552*n^3 + 34992*n^2 + 26244*n + 6561
+coeff_const = 46656*n^4 + 139968*n^3 + 157464*n^2 + 78713*n + 14748
+
+# Create polynomial ring in X over R
+S.<X> = PolynomialRing(R)
+
+# Construct the polynomial
+shift_R = R(shift_poly)
+new_poly = (X + shift_R)^3 + coeff_x2*(X + shift_R)^2 + coeff_x1*(X + shift_R) + coeff_const
+
+print("New polynomial in X:")
+print(new_poly)
+print()
+
+# Extract coefficients - use integers for exponents
+X3_coeff_poly = new_poly.coefficient(3)
+X2_coeff_poly = new_poly.coefficient(2)
+X1_coeff_poly = new_poly.coefficient(1)
+const_coeff_poly = new_poly.coefficient(0)
+
+print("X^3 coefficient:", X3_coeff_poly)
+print("X^2 coefficient:", X2_coeff_poly)
+print("X coefficient:", X1_coeff_poly)
+print("Constant term:", const_coeff_poly)
+print()
+
+print("X^2 coefficient is zero:", X2_coeff_poly == 0)
+print()
+
+A_poly = X1_coeff_poly
+B_poly = const_coeff_poly
+
+print("Final Weierstrass form (over QQ):")
+print("y^2 = X^3 +", A_poly, "* X +", B_poly)
