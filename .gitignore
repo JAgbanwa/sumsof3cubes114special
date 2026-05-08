@@ -1,5 +1,7 @@
 worker
 worker_boinc
+worker_ec
+worker_div
 output/
 *.log
 __pycache__/
