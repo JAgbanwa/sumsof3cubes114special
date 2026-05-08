@@ -34,11 +34,11 @@ from queue import Queue, Empty
 # ══════════════════════════════════════════════════════════════════════
 
 def verify(n: int, x: int, y: int) -> bool:
+    t = 4 * n + 3
     rhs = (x**3
-           + 1296 * n**2 * x**2
-           + 15552 * n**3 * x
-           + 46656 * n**4
-           - 19 * n)
+           + 81 * t * t * x**2
+           + 243 * t * t * t * x
+           + t * (11664 * n**3 + 26244 * n**2 + 19683 * n + 4916))
     return y * y == rhs
 
 
@@ -215,7 +215,8 @@ def _wu_dispatcher(n_queue: Queue, x_limit: int, use_pari: bool,
 def main():
     ap = argparse.ArgumentParser(
         description="Real-time local search for integer solutions of "
-                    "y² = x³ + 1296n²x² + 15552n³x + (46656n⁴ − 19n)")
+                    "y² = x³ + 81(4n+3)²x² + 243(4n+3)³x + "
+                    "(4n+3)(11664n³+26244n²+19683n+4916)")
     ap.add_argument("--workers",  type=int, default=os.cpu_count() or 4,
                     help="Number of parallel C workers (default: cpu_count)")
     ap.add_argument("--x_limit",  type=float, default=50_000_000,
@@ -235,7 +236,7 @@ def main():
 
     print(f"╔══════════════════════════════════════════════════════════════╗")
     print(f"║   ec_curve LOCAL REAL-TIME SEARCH                           ║")
-    print(f"║   y² = x³ + 1296n²x² + 15552n³x + (46656n⁴ − 19n)         ║")
+    print(f"║   y² = x³ + 81(4n+3)²x² + 243(4n+3)³x + ...                ║")
     print(f"╠══════════════════════════════════════════════════════════════╣")
     print(f"║  workers={args.workers:<3}  x_limit={x_limit:<12,}  wu_size={args.wu_size:<6}   ║")
     print(f"║  pari_exact={args.pari}   master → {_master_path}  ║")

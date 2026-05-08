@@ -1,5 +1,6 @@
 CC       = gcc
-CFLAGS   = -O3 -march=native -std=c99 -Wall -lm
+CFLAGS   = -O3 -march=native -std=c99 -Wall
+LDLIBS   = -lm
 SRC      = worker.c
 BIN      = worker
 BIN_B    = worker_boinc
@@ -12,14 +13,14 @@ BOINC_LIB ?= /usr/lib
 all: $(BIN)
 
 $(BIN): $(SRC)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
 	@echo "Built: $(BIN)"
 
 boinc: $(SRC)
 	$(CC) $(CFLAGS) -DBOINC \
 	    -I$(BOINC_INC) -L$(BOINC_LIB) \
 	    -o $(BIN_B) $^ \
-	    -lboinc_api -lboinc -lpthread -lm
+	    -lboinc_api -lboinc -lpthread $(LDLIBS)
 	@echo "Built: $(BIN_B)"
 
 test: $(BIN)
