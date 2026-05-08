@@ -110,9 +110,12 @@ static inline int sieve_pass(i64 x, i64 n) {
         long long p  = SIEVE_P[i];
         long long xm = ((long long)x % p + p) % p;
         long long nm = ((long long)n % p + p) % p;
-        long long t  = (4*nm + 3) % p;
-        long long a2 = (81 * t % p * t) % p;
-        long long a4 = (243 * t % p * t % p * t) % p;
+        long long t  = (((4 % p) * nm) % p + 3) % p;
+        long long a2 = ((81 % p) * t) % p;
+        a2 = (a2 * t) % p;
+        long long a4 = ((243 % p) * t) % p;
+        a4 = (a4 * t) % p;
+        a4 = (a4 * t) % p;
         long long n2 = nm * nm % p;
         long long n3 = n2 * nm % p;
         long long poly = (
