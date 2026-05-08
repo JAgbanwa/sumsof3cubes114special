@@ -115,7 +115,13 @@ static inline int sieve_pass(i64 x, i64 n) {
         long long a4 = (243 * t % p * t % p * t) % p;
         long long n2 = nm * nm % p;
         long long n3 = n2 * nm % p;
-        long long a6 = t * ((11664*n3 + 26244*n2 + 19683*nm + 4916) % p) % p;
+        long long poly = (
+            (11664 % p) * n3 % p
+          + (26244 % p) * n2 % p
+          + (19683 % p) * nm % p
+          + (4916  % p)
+        ) % p;
+        long long a6 = t * poly % p;
         long long fx = (xm*xm%p*xm%p + a2*xm%p*xm%p + a4*xm%p + a6) % p;
         fx = ((fx % p) + p) % p;
         if (!((QR[i] >> (int)fx) & 1)) return 0;
