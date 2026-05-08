@@ -157,7 +157,7 @@ static inline int sieve_pass(i64 x, i64 n) {
  * Uses __int128 — no overflow for |n|, |x| < 1e9
  * ══════════════════════════════════════════════════════════════════════ */
 static inline i128 f_eval(i64 x, i64 n) {
-    i128 t  = (i128)(4*n + 3);
+    i128 t  = (i128)4 * (i128)n + (i128)3;
     i128 n2 = (i128)n * n;
     i128 n3 = n2 * n;
     i128 a2 = (i128)81  * t * t;
