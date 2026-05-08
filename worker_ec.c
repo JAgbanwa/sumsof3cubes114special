@@ -97,6 +97,19 @@ static void build_sieve_tables(void) {
     }
 }
 
+static inline long long mod_norm(long long v, long long p) {
+    long long r = v % p;
+    return (r < 0) ? (r + p) : r;
+}
+
+static inline long long mod_add(long long a, long long b, long long p) {
+    return mod_norm(a + b, p);
+}
+
+static inline long long mod_mul(long long a, long long b, long long p) {
+    return (long long)(((i128)mod_norm(a, p) * mod_norm(b, p)) % p);
+}
+
 /*
  * Evaluate f(x) mod p for each sieve prime and test quadratic-residuosity.
  * Returns 1 if f(x) passes all tests (might be a perfect square),
@@ -108,25 +121,30 @@ static void build_sieve_tables(void) {
 static inline int sieve_pass(i64 x, i64 n) {
     for (int i = 0; i < N_SIEVES; i++) {
         long long p  = SIEVE_P[i];
-        long long xm = ((long long)x % p + p) % p;
-        long long nm = ((long long)n % p + p) % p;
-        long long t  = (((4 % p) * nm) % p + 3) % p;
-        long long a2 = ((81 % p) * t) % p;
-        a2 = (a2 * t) % p;
-        long long a4 = ((243 % p) * t) % p;
-        a4 = (a4 * t) % p;
-        a4 = (a4 * t) % p;
-        long long n2 = nm * nm % p;
-        long long n3 = n2 * nm % p;
-        long long poly = (
-            (11664 % p) * n3 % p
-          + (26244 % p) * n2 % p
-          + (19683 % p) * nm % p
-          + (4916  % p)
-        ) % p;
-        long long a6 = t * poly % p;
-        long long fx = (xm*xm%p*xm%p + a2*xm%p*xm%p + a4*xm%p + a6) % p;
-        fx = ((fx % p) + p) % p;
+        long long xm = mod_norm((long long)x, p);
+        long long nm = mod_norm((long long)n, p);
+        long long t  = mod_add(mod_mul(4, nm, p), 3, p);
+
+        long long n2 = mod_mul(nm, nm, p);
+        long long n3 = mod_mul(n2, nm, p);
+
+        long long a2 = mod_mul(mod_mul(81, t, p), t, p);
+        long long a4 = mod_mul(mod_mul(mod_mul(243, t, p), t, p), t, p);
+
+        long long poly = 0;
+        poly = mod_add(poly, mod_mul(11664, n3, p), p);
+        poly = mod_add(poly, mod_mul(26244, n2, p), p);
+        poly = mod_add(poly, mod_mul(19683, nm, p), p);
+        poly = mod_add(poly, mod_norm(4916, p), p);
+
+        long long a6 = mod_mul(t, poly, p);
+        long long x2 = mod_mul(xm, xm, p);
+        long long x3 = mod_mul(x2, xm, p);
+        long long fx = 0;
+        fx = mod_add(fx, x3, p);
+        fx = mod_add(fx, mod_mul(a2, x2, p), p);
+        fx = mod_add(fx, mod_mul(a4, xm, p), p);
+        fx = mod_add(fx, a6, p);
         if (!((QR[i] >> (int)fx) & 1)) return 0;
     }
     return 1;
