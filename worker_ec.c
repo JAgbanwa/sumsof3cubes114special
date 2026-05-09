@@ -154,9 +154,32 @@ static inline int sieve_pass(i64 x, i64 n) {
  * Exact evaluation of:
  *   f(x) = x³ + 81·(4n+3)²·x² + 243·(4n+3)³·x
  *               + (4n+3)·(11664·n³ + 26244·n² + 19683·n + 4916)
- * Uses __int128 — no overflow for |n|, |x| < 1e9
+ * Uses __int128 with a runtime guard that rejects inputs whose exact
+ * evaluation may overflow signed __int128.
  * ══════════════════════════════════════════════════════════════════════ */
+static inline int f_eval_overflows_i128(i64 x, i64 n) {
+    const long double i128_max = 170141183460469231731687303715884105727.0L;
+    long double ax = fabsl((long double)x);
+    long double an = fabsl((long double)n);
+    long double t  = 4.0L * an + 3.0L;
+    long double bound = ax * ax * ax
+                      + 81.0L * t * t * ax * ax
+                      + 243.0L * t * t * t * ax
+                      + t * (11664.0L * an * an * an
+                           + 26244.0L * an * an
+                           + 19683.0L * an
+                           + 4916.0L);
+    return !isfinite(bound) || bound > i128_max;
+}
+
 static inline i128 f_eval(i64 x, i64 n) {
+    if (f_eval_overflows_i128(x, n)) {
+        fprintf(stderr,
+                "f_eval overflow risk for x=%" PRId64 ", n=%" PRId64 "\n",
+                x, n);
+        abort();
+    }
+
     i128 t  = (i128)4 * (i128)n + (i128)3;
     i128 n2 = (i128)n * n;
     i128 n3 = n2 * n;
