@@ -4,7 +4,8 @@ worker_pari.py  —  Charity Engine / BOINC Python wrapper for the
                    PARI/GP algebraic-completeness worker
 
 Equation:
-    y² = x³ + 1296·n²·x² + 15552·n³·x + (46656·n⁴ − 19·n)
+    y² = x³ + 81·(4n+3)²·x² + 243·(4n+3)³·x
+             + (4n+3)·(11664·n³ + 26244·n² + 19683·n + 4916)
 
 Strategy:
     For each n, this worker calls PARI/GP's ellintegralpoints() which
@@ -83,7 +84,11 @@ _GP_BIN    = os.environ.get("GP_BIN", "gp")
 # ══════════════════════════════════════════════════════════════════════
 
 def verify(n: int, x: int, y: int) -> bool:
-    rhs = x**3 + 1296*n**2*x**2 + 15552*n**3*x + 46656*n**4 - 19*n
+    t = 4 * n + 3
+    rhs = (x**3
+           + 81 * t * t * x**2
+           + 243 * t * t * t * x
+           + t * (11664 * n**3 + 26244 * n**2 + 19683 * n + 4916))
     return y*y == rhs
 
 
@@ -96,9 +101,10 @@ def _search_cypari(n_start: int, n_end: int):
     pari = _CYPARI
 
     def search_one(n):
-        a2 = 1296 * n * n
-        a4 = 15552 * n**3
-        a6 = 46656 * n**4 - 19 * n
+        t = 4 * n + 3
+        a2 = 81 * t * t
+        a4 = 243 * t * t * t
+        a6 = t * (11664 * n**3 + 26244 * n**2 + 19683 * n + 4916)
         try:
             E   = pari.ellinit([0, a2, 0, a4, a6])
             if pari.elldisc(E) == 0:
@@ -113,18 +119,7 @@ def _search_cypari(n_start: int, n_end: int):
         except Exception as exc:
             print(f"[cypari] n={n}  error: {exc}", file=sys.stderr)
 
-    # n = 0 special case: y² = x³
-    if n_start <= 0 <= n_end:
-        yield (0, 0, 0)
-        k = 1
-        while k * k <= 10**6:
-            yield (0, k*k,  k**3)
-            yield (0, k*k, -k**3)
-            k += 1
-
     for n in range(n_start, n_end + 1):
-        if n == 0:
-            continue
         yield from search_one(n)
 
 
@@ -283,7 +278,7 @@ def run_worker(wu_path: str, result_path: str, ckpt_path: str,
 def main():
     ap = argparse.ArgumentParser(
         description="PARI/GP elliptic-curve integral-points worker for "
-                    "y² = x³ + 1296n²x² + 15552n³x + (46656n⁴ − 19n)")
+                    "y² = x³ + 81(4n+3)²x² + 243(4n+3)³x + ...")
     ap.add_argument("wu_file",     help="Work-unit file (n_start/n_end/batch)")
     ap.add_argument("result_file", help="Output file for solutions")
     ap.add_argument("checkpoint",  nargs="?",

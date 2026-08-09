@@ -3,15 +3,15 @@
  *
  * Searches all integers (x, y) satisfying:
  *
- *   y² = x³ + 1296·n²·x² + 15552·n³·x + (46656·n⁴ − 19·n)
+ *   y² = x³ + 81·(4n+3)²·x² + 243·(4n+3)³·x
+ *            + (4n+3)·(11664·n³ + 26244·n² + 19683·n + 4916)
  *
  * Equation notes
  * ──────────────
- *  • Coefficients: 1296 = 6⁴, 15552 = 2·6⁵, 46656 = 6⁶
- *  • Short Weierstrass form (via t = x + 432·n²):
- *      y² = t³ + A(n)·t + B(n)
- *      A(n) = 15552·n³ − 559872·n⁴
- *      B(n) = 161243136·n⁶ − 6718464·n⁵ + 46656·n⁴ − 19·n
+ *  • Let t = 4n+3, then coefficients are:
+ *      a2 = 81·t²
+ *      a4 = 243·t³
+ *      a6 = t·(11664·n³ + 26244·n² + 19683·n + 4916)
  *  • This worker does bounded arithmetic search; the PARI/GP worker
  *    (worker_pari.py) provides the provably-complete algebraic search.
  *
@@ -97,46 +97,103 @@ static void build_sieve_tables(void) {
     }
 }
 
+static inline long long mod_norm(long long v, long long p) {
+    long long r = v % p;
+    return (r < 0) ? (r + p) : r;
+}
+
+static inline long long mod_add(long long a, long long b, long long p) {
+    return mod_norm(a + b, p);
+}
+
+static inline long long mod_mul(long long a, long long b, long long p) {
+    return (long long)(((i128)mod_norm(a, p) * mod_norm(b, p)) % p);
+}
+
 /*
  * Evaluate f(x) mod p for each sieve prime and test quadratic-residuosity.
  * Returns 1 if f(x) passes all tests (might be a perfect square),
  * returns 0 if proven NOT a perfect square → skip.
  *
- * f(x) = x³ + 1296·n²·x² + 15552·n³·x + 46656·n⁴ − 19·n
+ * f(x) = x³ + 81·(4n+3)²·x² + 243·(4n+3)³·x
+ *              + (4n+3)·(11664·n³ + 26244·n² + 19683·n + 4916)
  */
 static inline int sieve_pass(i64 x, i64 n) {
     for (int i = 0; i < N_SIEVES; i++) {
         long long p  = SIEVE_P[i];
-        long long xm = ((long long)x % p + p) % p;
-        long long nm = ((long long)n % p + p) % p;
-        long long n2 = nm*nm % p;
-        long long n3 = n2*nm % p;
-        long long n4 = n3*nm % p;
-        /* 1296 mod p, 15552 mod p, 46656 mod p, 19 mod p */
-        long long a2 = 1296 % p * n2 % p;
-        long long a4 = 15552 % p * n3 % p;
-        long long a6 = ((46656 % p * n4 % p) - (19 % p * nm % p) + p*2) % p;
-        long long fx = (xm*xm%p*xm%p + a2*xm%p*xm%p + a4*xm%p + a6) % p;
-        fx = ((fx % p) + p) % p;
+        long long xm = mod_norm((long long)x, p);
+        long long nm = mod_norm((long long)n, p);
+        long long t  = mod_add(mod_mul(4, nm, p), 3, p);
+
+        long long n2 = mod_mul(nm, nm, p);
+        long long n3 = mod_mul(n2, nm, p);
+
+        long long a2 = mod_mul(mod_mul(81, t, p), t, p);
+        long long a4 = mod_mul(mod_mul(mod_mul(243, t, p), t, p), t, p);
+
+        long long poly = 0;
+        poly = mod_add(poly, mod_mul(11664, n3, p), p);
+        poly = mod_add(poly, mod_mul(26244, n2, p), p);
+        poly = mod_add(poly, mod_mul(19683, nm, p), p);
+        poly = mod_add(poly, mod_norm(4916, p), p);
+
+        long long a6 = mod_mul(t, poly, p);
+        long long x2 = mod_mul(xm, xm, p);
+        long long x3 = mod_mul(x2, xm, p);
+        long long fx = 0;
+        fx = mod_add(fx, x3, p);
+        fx = mod_add(fx, mod_mul(a2, x2, p), p);
+        fx = mod_add(fx, mod_mul(a4, xm, p), p);
+        fx = mod_add(fx, a6, p);
         if (!((QR[i] >> (int)fx) & 1)) return 0;
     }
     return 1;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- * Exact evaluation of f(x) = x³ + 1296n²x² + 15552n³x + 46656n⁴ − 19n
- * Uses __int128 — no overflow for |n|, |x| < 1e9
+ * Exact evaluation of:
+ *   f(x) = x³ + 81·(4n+3)²·x² + 243·(4n+3)³·x
+ *               + (4n+3)·(11664·n³ + 26244·n² + 19683·n + 4916)
+ * Uses __int128 with a runtime guard that rejects inputs whose exact
+ * evaluation may overflow signed __int128.
  * ══════════════════════════════════════════════════════════════════════ */
+static inline int f_eval_overflows_i128(i64 x, i64 n) {
+    const long double i128_max = 170141183460469231731687303715884105727.0L;
+    long double ax = fabsl((long double)x);
+    long double an = fabsl((long double)n);
+    long double t  = 4.0L * an + 3.0L;
+    long double bound = ax * ax * ax
+                      + 81.0L * t * t * ax * ax
+                      + 243.0L * t * t * t * ax
+                      + t * (11664.0L * an * an * an
+                           + 26244.0L * an * an
+                           + 19683.0L * an
+                           + 4916.0L);
+    return !isfinite(bound) || bound > i128_max;
+}
+
 static inline i128 f_eval(i64 x, i64 n) {
+    if (f_eval_overflows_i128(x, n)) {
+        fprintf(stderr,
+                "f_eval overflow risk for x=%" PRId64 ", n=%" PRId64 "\n",
+                x, n);
+        abort();
+    }
+
+    i128 t  = (i128)4 * (i128)n + (i128)3;
     i128 n2 = (i128)n * n;
     i128 n3 = n2 * n;
-    i128 n4 = n3 * n;
+    i128 a2 = (i128)81  * t * t;
+    i128 a4 = (i128)243 * t * t * t;
+    i128 a6 = t * ((i128)11664 * n3
+                 + (i128)26244 * n2
+                 + (i128)19683 * n
+                 + (i128)4916);
     i128 xm = (i128)x;
     return xm*xm*xm
-         + (i128)1296 * n2 * xm*xm
-         + (i128)15552 * n3 * xm
-         + (i128)46656 * n4
-         - (i128)19 * n;
+         + a2 * xm*xm
+         + a4 * xm
+         + a6;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -145,9 +202,13 @@ static inline i128 f_eval(i64 x, i64 n) {
  * ══════════════════════════════════════════════════════════════════════ */
 static i64 find_lower_bound(i64 n) {
     double nd = (double)n;
-    double A  = 1296.0 * nd*nd;
-    double B  = 15552.0 * nd*nd*nd;
-    double C  = 46656.0 * nd*nd*nd*nd - 19.0*nd;
+    double td = 4.0*nd + 3.0;
+    double A  = 81.0  * td * td;
+    double B  = 243.0 * td * td * td;
+    double C  = td * (11664.0*nd*nd*nd
+                    + 26244.0*nd*nd
+                    + 19683.0*nd
+                    + 4916.0);
     /* Newton iterations from a very negative start */
     double xf = -(fabs(A) + fabs(B) + 1.0 + 10.0);
     for (int iter = 0; iter < 100; iter++) {
@@ -175,18 +236,6 @@ static i64 find_lower_bound(i64 n) {
 static int search_n(i64 n, i64 x_limit, FILE *out) {
     int found = 0;
     i64 y_val;
-
-    /* ── n = 0 special case: y² = x³  (infinite family of solutions) ── */
-    if (n == 0) {
-        /* y² = x³  →  (x,y) = (k², k³) for k in Z, and (0,0) */
-        fprintf(out, "0 0 0\n");
-        for (i64 k = 1; k*k <= x_limit; k++) {
-            i64 xs = k*k, ys = k*k*k;
-            fprintf(out, "0 %" PRId64 " %" PRId64 "\n", xs,  ys);
-            fprintf(out, "0 %" PRId64 " %" PRId64 "\n", xs, -ys);
-        }
-        return 0; /* handled separately */
-    }
 
     /* ── Positive x: 0 .. x_limit ── */
     for (i64 x = 0; x <= x_limit; x++) {
